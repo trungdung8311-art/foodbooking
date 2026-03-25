@@ -2,9 +2,9 @@
 
 ## 👥 Thành viên nhóm
 
-* Thành viên 1: ...
-* Thành viên 2: ...
-* Thành viên 3: ...
+* Thành viên 1: Nguyễn Bá Tuấn Anh
+* Thành viên 2: Nguyễn Trần Xuân Bắc
+* Thành viên 3: Bùi Trung Dũng
 
 ---
 
