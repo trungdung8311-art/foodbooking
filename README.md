@@ -35,7 +35,6 @@ Hệ thống gồm 2 vai trò chính: Admin và User.
 * Quản lý món ăn
 * Quản lý đơn hàng
 * Thống kê / báo cáo
-* CSKH 
 
 ### 🔹 User
 
