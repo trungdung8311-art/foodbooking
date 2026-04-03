@@ -109,5 +109,3 @@ erDiagram
     ORDERS ||--|| PAYMENTS : has
 
 ## 🔗 Repository
-
-Link GitHub: https://github.com/tenban/website-dat-do-an
