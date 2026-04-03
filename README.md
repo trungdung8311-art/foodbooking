@@ -45,7 +45,6 @@ Hệ thống gồm 2 vai trò chính: Admin và User.
 * Đặt món
 * Thanh toán online
 * Theo dõi đơn hàng
-* CSKH 
 
 ---
 
