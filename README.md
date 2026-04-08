@@ -1,4 +1,4 @@
-# 💈 Website đặt đồ ăn CicaFood
+# 🍔 Website đặt đồ ăn CicaFood
 
 > **Đề tài thực tập tốt nghiệp** — Lớp LTWNC-D18CNPM2
 
