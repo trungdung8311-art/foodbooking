@@ -1,17 +1,28 @@
-# 📌 DỰ ÁN: WEBSITE ĐẶT ĐỒ ĂN
+# 💈 Website đặt đồ ăn CicaFood
+
+> **Đề tài thực tập tốt nghiệp** — Lớp LTWNC-D18CNPM2
+
+Dự án xây dựng website đặt đồ ăn trực tuyến, cho phép người dùng lựa chọn món ăn, đặt hàng và thanh toán online.
+---
 
 ## 👥 Thành viên nhóm
 
-* Thành viên 1: Nguyễn Bá Tuấn Anh
-* Thành viên 2: Nguyễn Trần Xuân Bắc
-* Thành viên 3: Bùi Trung Dũng
+| STT | Họ và tên | MSSV | Vai trò |
+|---|---|---|---|
+| 1 | Nguyễn Bá Tuấn Anh | 23810310109 | Nhóm trưởng |
+| 2 | Nguyễn Bá Tuấn Anh | 23810310100 | Thành viên |
+| 3 | Bùi Trung Dũng | 23810310099 | Thành viên |
 
 ---
 
-## 📖 Giới thiệu
+## 🚀 Công nghệ sử dụng
 
-Dự án xây dựng website đặt đồ ăn trực tuyến, cho phép người dùng lựa chọn món ăn, đặt hàng và thanh toán online.
-Hệ thống gồm 2 vai trò chính: Admin và User.
+| Thành phần | Công nghệ |
+|---|---|
+| Frontend | HTML, CSS, JavaScript, Bootstrap 5 |
+| Backend | PHP thuần |
+| Database | MySQL |
+| Thanh toán | VNPay / ZaloPay / Momo |
 
 ---
 
@@ -24,27 +35,6 @@ Hệ thống gồm 2 vai trò chính: Admin và User.
 - [SRS Menu](./sources/SRS_Menu.md)
 - [SRS Search](./sources/SRS_Search.md)
 - [SRS Banking](./sources/SRS_Banking.md)
----
-
-## ⚙️ Chức năng chính
-
-### 🔹 Admin
-
-* Quản lý người dùng
-* Quản lý danh mục món ăn
-* Quản lý món ăn
-* Quản lý đơn hàng
-* Thống kê / báo cáo
-
-### 🔹 User
-
-* Đăng ký / đăng nhập
-* Xem món ăn
-* Giỏ hàng
-* Đặt món
-* Thanh toán online
-* Theo dõi đơn hàng
-
 ---
 
 ## Sơ đồ cơ sở dữ liệu (Database Diagram)
