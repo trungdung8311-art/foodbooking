@@ -39,63 +39,34 @@ Dự án xây dựng website đặt đồ ăn trực tuyến, cho phép người
 
 ## Sơ đồ cơ sở dữ liệu (Database Diagram)
 
-```mermaid
-erDiagram
-    USERS {
-        int id
-        string name
-        string email
-        string password
-        string role
-    }
+```
+barber-spa/
+├── docs/
+│   └── srs/
+│       ├── SRS_User.md
+│       ├── SRS_Admin.md
+│       ├── SRS_Login.md
+│       ├── SRS_Order.md
+│       ├── SRS_Menu.md
+│       ├── SRS_SEARCH.md
+│       └── SRS_Banking.md
+├── public/
+│   ├── index.php
+│   ├── css/
+│   ├── js/
+│   └── images/
+├── app/                    #  src/ (PHP thuần)
+│   ├── Controllers/
+│   ├── Models/
+│   └── Views/
+├── database/
+│   ├── migrations/
+│   └── seeders/
+├── .env.example
+├── composer.json
+└── README.md
+```
 
-    CATEGORIES {
-        int id
-        string name
-    }
-
-    FOODS {
-        int id
-        string name
-        float price
-        string image
-        int category_id
-    }
-
-    ORDERS {
-        int id
-        int user_id
-        float total
-        string status
-        datetime created_at
-    }
-
-    ORDER_DETAILS {
-        int id
-        int order_id
-        int food_id
-        int quantity
-        float price
-    }
-
-    PAYMENTS {
-        int id
-        int order_id
-        string method
-        string status
-        datetime paid_at
-    }
-
-    PROMOTIONS {
-        int id
-        string name
-        float discount
-    }
-
-    USERS ||--o{ ORDERS : places
-    ORDERS ||--o{ ORDER_DETAILS : contains
-    FOODS ||--o{ ORDER_DETAILS : included_in
-    CATEGORIES ||--o{ FOODS : has
-    ORDERS ||--|| PAYMENTS : has
+---
 
 ## 🔗 Repository
