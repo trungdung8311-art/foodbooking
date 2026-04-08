@@ -37,7 +37,7 @@ Dự án xây dựng website đặt đồ ăn trực tuyến, cho phép người
 - [SRS Banking](./sources/SRS_Banking.md)
 ---
 
-## Sơ đồ cơ sở dữ liệu (Database Diagram)
+## 🗂️ Cấu trúc thư mục dự án
 
 ```
 barber-spa/
