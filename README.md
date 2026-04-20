@@ -28,11 +28,11 @@ Cicafood là nền tảng đặt đồ ăn trực tuyến hiện đại, kết n
 
 | Thành phần | Công nghệ |
 | ---------- | --------- |
-| Frontend   | HTML5, CSS3, JavaScript ES6+, TailwindCSS 3.x |
-| Backend    | PHP 8.0+ thuần theo mô hình MVC |
-| Database   | MySQL 8.0 / MariaDB 10.x |
-| Web server | Apache 2.4 (XAMPP) |
-| UI Framework | TailwindCSS CDN, Font Awesome 6.5 |
+| Frontend   | HTML5, CSS3, JavaScript ES6+, TailwindCSS |
+| Backend    | PHP 8 thuần theo mô hình MVC |
+| Database   | MySQL / MariaDB |
+| Web server | Apache (XAMPP) |
+| UI Framework | TailwindCSS CDN, Font Awesome |
 | Session & Auth | PHP Sessions, bcrypt password hashing |
 
 ---
