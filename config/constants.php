@@ -42,9 +42,7 @@ define('DEFAULT_MENU_ITEM_IMAGE', 'https://images.unsplash.com/photo-1546069901-
 // Payment Methods
 define('PAYMENT_METHODS', [
     'cod' => 'Thanh toán khi nhận hàng',
-    'momo' => 'Ví MoMo',
     'vnpay' => 'VNPay',
-    'bank' => 'Chuyển khoản ngân hàng'
 ]);
 
 // Order Status
