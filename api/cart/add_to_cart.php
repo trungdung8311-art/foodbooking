@@ -1,6 +1,6 @@
 <?php
 // api/cart/add_to_cart.php - AJAX: Thêm món vào giỏ hàng
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/database.php'; // Session đã được khởi tạo trong file này
 header('Content-Type: application/json; charset=utf-8');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

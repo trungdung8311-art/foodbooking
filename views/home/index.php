@@ -513,7 +513,7 @@ function claimVoucher(voucherId, btn) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
-    fetch('/foodbooking/api/save_voucher.php', {
+    fetch('/foodbooking/api/voucher/save_voucher.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({voucher_id: voucherId})

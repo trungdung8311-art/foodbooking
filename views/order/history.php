@@ -179,7 +179,7 @@ require_once __DIR__ . '/../../includes/header.php';
 function cancelOrder(orderId) {
     if (!confirm('Bạn có chắc muốn huỷ đơn hàng này?')) return;
     
-    fetch('/foodbooking/api/cancel_order.php', {
+    fetch('/foodbooking/api/order/cancel_order.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: orderId })

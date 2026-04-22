@@ -128,6 +128,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             $_SESSION['cart'] = [];
             unset($_SESSION['cart_restaurant_id']);
 
+            // Nếu chọn VNPAY, chuyển hướng sang trang thanh toán
+            if ($paymentMethod === 'vnpay') {
+                require_once __DIR__ . '/../../config/vnpay.php';
+                $paymentUrl = createVNPayPaymentUrl($orderId, $totalAmount, "Thanh toan don hang #{$orderCode}", $_SERVER['REMOTE_ADDR']);
+                header("Location: " . $paymentUrl);
+                exit;
+            }
+
             setFlash('success', "Đặt hàng thành công! Mã đơn: #{$orderCode}");
             header("Location: /foodbooking/views/order/success.php?id={$orderId}");
             exit;
@@ -218,7 +226,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 </div>
             </div>
 
-            <!-- 2. Voucher -->
+            <!-- 2. Voucher (Nâng cấp với Modal) -->
             <div class="bg-white rounded-3xl shadow-sm border border-gray-100 p-6">
                 <h2 class="font-black text-gray-900 text-lg mb-5 flex items-center gap-2">
                     <div class="w-8 h-8 bg-orange-50 rounded-xl flex items-center justify-center">
@@ -227,57 +235,67 @@ require_once __DIR__ . '/../../includes/header.php';
                     Mã Giảm Giá
                 </h2>
                 
-                <!-- Voucher giảm giá món -->
-                <div class="mb-4">
-                    <label class="block text-xs font-semibold text-gray-600 mb-2">
-                        <i class="fas fa-tag text-cica-red mr-1"></i>Voucher Giảm Giá
-                    </label>
-                    <div class="flex gap-2">
-                        <input type="text" id="voucher-input" name="voucher_code" 
-                               value="<?= e($_POST['voucher_code'] ?? '') ?>"
-                               placeholder="Nhập mã giảm giá..."
-                               class="flex-1 px-4 py-3 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-sm outline-none focus:border-cica-red uppercase transition"
-                               style="text-transform:uppercase">
-                        <button type="button" onclick="applyVoucher('discount')"
-                                class="bg-cica-red text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-red-700 transition active:scale-95">
-                            Áp dụng
-                        </button>
+                <!-- Nút mở Modal chọn voucher -->
+                <button type="button" onclick="openVoucherModal()"
+                        class="w-full bg-gradient-to-r from-red-50 to-orange-50 border-2 border-dashed border-red-200 rounded-2xl p-4 hover:from-red-100 hover:to-orange-100 transition flex items-center justify-between group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <i class="fas fa-ticket-alt text-cica-red text-xl"></i>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-black text-gray-800 text-sm">Chọn voucher giảm giá</p>
+                            <p class="text-xs text-gray-500 mt-0.5" id="discount-voucher-status">Chưa chọn voucher</p>
+                        </div>
                     </div>
-                    <div id="voucher-result" class="mt-2 hidden"></div>
-                </div>
+                    <i class="fas fa-chevron-right text-gray-400 group-hover:text-cica-red transition"></i>
+                </button>
 
-                <!-- Voucher freeship -->
-                <div>
-                    <label class="block text-xs font-semibold text-gray-600 mb-2">
-                        <i class="fas fa-motorcycle text-green-500 mr-1"></i>Mã Freeship
-                    </label>
-                    <div class="flex gap-2">
-                        <input type="text" id="ship-voucher-input" name="voucher_ship"
-                               value="<?= e($_POST['voucher_ship'] ?? '') ?>"
-                               placeholder="Nhập mã freeship..."
-                               class="flex-1 px-4 py-3 bg-gray-50 border border-dashed border-gray-300 rounded-xl text-sm outline-none focus:border-green-500 uppercase transition"
-                               style="text-transform:uppercase">
-                        <button type="button" onclick="applyVoucher('ship')"
-                                class="bg-green-500 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-green-600 transition active:scale-95">
-                            Áp dụng
-                        </button>
+                <!-- Voucher giảm giá đã chọn -->
+                <div id="discount-voucher-display" class="hidden mt-3 bg-red-50 border border-red-200 rounded-xl p-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-red-600"></i>
+                        <div>
+                            <p class="font-bold text-red-800 text-sm" id="discount-voucher-code"></p>
+                            <p class="text-xs text-red-600" id="discount-voucher-save"></p>
+                        </div>
                     </div>
-                    <div id="ship-voucher-result" class="mt-2 hidden"></div>
-                </div>
-
-                <!-- Gợi ý voucher -->
-                <div class="mt-4 grid grid-cols-2 gap-2">
-                    <button type="button" onclick="useVoucherSuggestion('CICA20', 'discount')"
-                            class="text-left bg-red-50 border border-red-100 rounded-xl p-3 hover:bg-red-100 transition">
-                        <p class="font-bold text-cica-red text-xs">CICA20</p>
-                        <p class="text-gray-500 text-[10px]">Giảm 20%, tối đa 50K</p>
-                    </button>
-                    <button type="button" onclick="useVoucherSuggestion('FREESHIP', 'ship')"
-                            class="text-left bg-green-50 border border-green-100 rounded-xl p-3 hover:bg-green-100 transition">
-                        <p class="font-bold text-green-600 text-xs">FREESHIP</p>
-                        <p class="text-gray-500 text-[10px]">Miễn phí vận chuyển</p>
+                    <button type="button" onclick="removeDiscountVoucher()" class="text-red-500 hover:text-red-700 text-sm font-bold">
+                        <i class="fas fa-times"></i>
                     </button>
                 </div>
+
+                <!-- Nút chọn voucher freeship -->
+                <button type="button" onclick="openFreeshipModal()"
+                        class="w-full mt-3 bg-gradient-to-r from-green-50 to-teal-50 border-2 border-dashed border-green-200 rounded-2xl p-4 hover:from-green-100 hover:to-teal-100 transition flex items-center justify-between group">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                            <i class="fas fa-motorcycle text-green-600 text-xl"></i>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-black text-gray-800 text-sm">Chọn voucher freeship</p>
+                            <p class="text-xs text-gray-500 mt-0.5" id="freeship-voucher-status">Chưa chọn voucher</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-400 group-hover:text-green-600 transition"></i>
+                </button>
+
+                <!-- Voucher freeship đã chọn -->
+                <div id="freeship-voucher-display" class="hidden mt-3 bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-green-600"></i>
+                        <div>
+                            <p class="font-bold text-green-800 text-sm" id="freeship-voucher-code"></p>
+                            <p class="text-xs text-green-600" id="freeship-voucher-save"></p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="removeFreeshipVoucher()" class="text-red-500 hover:text-red-700 text-sm font-bold">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Hidden inputs -->
+                <input type="hidden" name="voucher_code" id="voucher-code-input" value="">
+                <input type="hidden" name="voucher_ship" id="ship-voucher-code-input" value="">
             </div>
 
             <!-- 3. Phương thức thanh toán -->
@@ -291,10 +309,8 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="grid grid-cols-2 gap-3">
                     <?php 
                     $methods = [
-                        'cod'     => ['icon' => 'fa-money-bill-wave', 'label' => 'Tiền mặt COD', 'color' => 'text-green-600', 'bg' => 'bg-green-50'],
-                        'momo'    => ['icon' => 'fa-wallet', 'label' => 'Ví MoMo', 'color' => 'text-pink-600', 'bg' => 'bg-pink-50'],
-                        'zalopay'=> ['icon' => 'fa-mobile-screen', 'label' => 'ZaloPay', 'color' => 'text-blue-600', 'bg' => 'bg-blue-50'],
-                        'bank'    => ['icon' => 'fa-building-columns', 'label' => 'Chuyển khoản', 'color' => 'text-purple-600', 'bg' => 'bg-purple-50'],
+                        'cod'     => ['icon' => 'fa-money-bill-wave', 'label' => 'Tiền mặt COD', 'color' => 'text-green-600', 'bg' => 'bg-green-50', 'desc' => 'Thanh toán khi nhận hàng'],
+                        'vnpay'   => ['icon' => 'fa-credit-card', 'label' => 'VNPAY', 'color' => 'text-blue-600', 'bg' => 'bg-blue-50', 'desc' => 'Thanh toán qua VNPAY'],
                     ];
                     foreach ($methods as $val => $m): ?>
                     <label class="relative cursor-pointer">
@@ -305,7 +321,10 @@ require_once __DIR__ . '/../../includes/header.php';
                             <div class="w-9 h-9 <?= $m['bg'] ?> rounded-xl flex items-center justify-center flex-shrink-0">
                                 <i class="fas <?= $m['icon'] ?> <?= $m['color'] ?>"></i>
                             </div>
-                            <span class="text-sm font-semibold text-gray-700"><?= $m['label'] ?></span>
+                            <div class="flex-1">
+                                <span class="text-sm font-semibold text-gray-700 block"><?= $m['label'] ?></span>
+                                <span class="text-xs text-gray-400"><?= $m['desc'] ?></span>
+                            </div>
                         </div>
                         <div class="absolute top-3 right-3 w-4 h-4 border-2 border-gray-300 rounded-full peer-checked:border-cica-red peer-checked:bg-cica-red flex items-center justify-center hidden peer-checked:flex">
                             <div class="w-2 h-2 bg-white rounded-full"></div>
@@ -415,7 +434,7 @@ function applyVoucher(type) {
 
     if (!code) { showVoucherMsg(resultDiv, 'error', 'Vui lòng nhập mã voucher'); return; }
 
-    fetch('/foodbooking/api/apply_voucher.php', {
+    fetch('/foodbooking/api/order/apply_voucher.php', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ code: code, subtotal: SUBTOTAL, type: type })
@@ -469,4 +488,263 @@ function useVoucherSuggestion(code, type) {
     input.value = code;
     applyVoucher(type);
 }
+
+// ============================================================
+// MODAL VOUCHER - CHỌN 2 VOUCHER ĐỒNG THỜI
+// ============================================================
+
+let availableVouchers = [];
+let selectedDiscountVoucher = null;
+let selectedFreeshipVoucher = null;
+let currentModalType = 'discount'; // 'discount' hoặc 'freeship'
+
+// Mở Modal chọn voucher giảm giá
+function openVoucherModal() {
+    currentModalType = 'discount';
+    document.getElementById('modal-title').textContent = 'Chọn Voucher Giảm Giá';
+    document.getElementById('modal-subtitle').textContent = 'Chọn voucher giảm giá cho đơn hàng';
+    openModal();
+}
+
+// Mở Modal chọn voucher freeship
+function openFreeshipModal() {
+    currentModalType = 'freeship';
+    document.getElementById('modal-title').textContent = 'Chọn Voucher Freeship';
+    document.getElementById('modal-subtitle').textContent = 'Chọn voucher miễn phí vận chuyển';
+    openModal();
+}
+
+// Mở Modal chung
+function openModal() {
+    const modal = document.getElementById('voucher-modal');
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.classList.add('active'), 10);
+    loadAvailableVouchers();
+}
+
+// Đóng Modal
+function closeVoucherModal() {
+    const modal = document.getElementById('voucher-modal');
+    modal.classList.remove('active');
+    setTimeout(() => modal.classList.add('hidden'), 300);
+}
+
+// Load danh sách voucher từ API
+function loadAvailableVouchers() {
+    const container = document.getElementById('voucher-list');
+    container.innerHTML = '<div class="text-center py-8"><i class="fas fa-spinner fa-spin text-3xl text-gray-300"></i><p class="text-gray-400 mt-2">Đang tải voucher...</p></div>';
+    
+    fetch(`/foodbooking/api/voucher/get_available_vouchers.php?restaurant_id=<?= $cartRestaurantId ?>&subtotal=${SUBTOTAL}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                availableVouchers = data.vouchers;
+                renderVoucherList(data.vouchers);
+            } else {
+                container.innerHTML = '<div class="text-center py-8 text-red-500">' + data.message + '</div>';
+            }
+        })
+        .catch(err => {
+            container.innerHTML = '<div class="text-center py-8 text-red-500">Lỗi kết nối. Vui lòng thử lại.</div>';
+        });
+}
+
+// Render danh sách voucher (lọc theo loại đang chọn)
+function renderVoucherList(vouchers) {
+    const container = document.getElementById('voucher-list');
+    
+    // Lọc voucher theo loại modal đang mở
+    const filteredVouchers = vouchers.filter(v => {
+        if (currentModalType === 'freeship') {
+            return v.type === 'freeship';
+        } else {
+            return v.type !== 'freeship'; // percent hoặc fixed
+        }
+    });
+    
+    if (filteredVouchers.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-12">
+                <i class="fas fa-ticket-alt text-5xl text-gray-200 mb-3"></i>
+                <p class="text-gray-400 font-medium">Không có voucher khả dụng</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    filteredVouchers.forEach(v => {
+        const isValid = v.is_valid;
+        const isFreeship = v.type === 'freeship';
+        const colorClass = isFreeship ? 'green' : 'red';
+        const bgClass = isValid ? `bg-${colorClass}-50` : 'bg-gray-100';
+        const borderClass = isValid ? `border-${colorClass}-200` : 'border-gray-200';
+        const textClass = isValid ? `text-${colorClass}-600` : 'text-gray-400';
+        const opacity = isValid ? '' : 'opacity-60';
+        const cursor = isValid ? 'cursor-pointer hover:shadow-md' : 'cursor-not-allowed';
+        
+        const icon = v.type === 'freeship' ? 'fa-motorcycle' : (v.type === 'percent' ? 'fa-percent' : 'fa-money-bill-wave');
+        const valueDisplay = v.type === 'percent' ? `${v.value}%` : (v.type === 'freeship' ? 'Freeship' : v.discount_formatted);
+        
+        html += `
+            <div onclick="${isValid ? `selectVoucher(${v.id})` : ''}" 
+                 class="bg-white border-2 ${borderClass} rounded-2xl flex overflow-hidden ${opacity} ${cursor} transition"
+                 id="voucher-item-${v.id}">
+                
+                <div class="w-20 ${bgClass} border-r-2 border-dashed ${borderClass} flex flex-col items-center justify-center p-2 relative">
+                    <div class="absolute -top-3 -right-3 w-6 h-6 bg-gray-50 rounded-full border border-gray-200"></div>
+                    <div class="absolute -bottom-3 -right-3 w-6 h-6 bg-gray-50 rounded-full border border-gray-200"></div>
+                    <i class="fas ${icon} text-2xl ${textClass} mb-1"></i>
+                    <span class="text-[9px] font-black uppercase text-center ${textClass} leading-tight">${valueDisplay}</span>
+                </div>
+                
+                <div class="flex-1 p-4">
+                    ${v.restaurant_name ? `
+                        <span class="text-[10px] font-bold text-cica-red mb-1 flex items-center gap-1">
+                            <i class="fas fa-store"></i> ${v.restaurant_name}
+                        </span>
+                    ` : `
+                        <span class="text-[10px] font-bold text-blue-500 mb-1 flex items-center gap-1">
+                            <i class="fas fa-globe"></i> Toàn sàn Cicafood
+                        </span>
+                    `}
+                    
+                    <h3 class="font-black text-gray-800 text-sm mb-1">${v.name}</h3>
+                    <p class="text-xs text-gray-500 mb-2">${v.description}</p>
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="font-mono font-bold text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">${v.code}</span>
+                            <p class="text-[10px] text-gray-400 mt-1">HSD: ${new Date(v.end_date).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                        
+                        ${isValid ? `
+                            <div class="text-right">
+                                <p class="text-xs font-bold text-green-600">Tiết kiệm ${v.discount_formatted}</p>
+                                <p class="text-[10px] text-gray-400">Đơn từ ${v.min_order_formatted}</p>
+                            </div>
+                        ` : `
+                            <div class="text-right">
+                                <p class="text-xs font-bold text-red-500">Không đủ điều kiện</p>
+                                <p class="text-[10px] text-gray-500">${v.reason}</p>
+                            </div>
+                        `}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Chọn voucher
+function selectVoucher(voucherId) {
+    const voucher = availableVouchers.find(v => v.id === voucherId);
+    if (!voucher || !voucher.is_valid) return;
+    
+    if (currentModalType === 'freeship') {
+        // Chọn voucher freeship
+        selectedFreeshipVoucher = voucher;
+        
+        document.getElementById('freeship-voucher-status').textContent = `${voucher.code} - Tiết kiệm ${voucher.discount_formatted}`;
+        document.getElementById('freeship-voucher-display').classList.remove('hidden');
+        document.getElementById('freeship-voucher-code').textContent = voucher.code;
+        document.getElementById('freeship-voucher-save').textContent = `Tiết kiệm ${voucher.discount_formatted}`;
+        
+        document.getElementById('ship-voucher-code-input').value = voucher.code;
+        currentShipDiscount = voucher.discount_amount;
+        document.getElementById('shipping-discount-input').value = currentShipDiscount;
+        document.getElementById('ship-discount-row').classList.remove('hidden');
+        document.getElementById('ship-discount-display').textContent = '-' + voucher.discount_formatted;
+        
+    } else {
+        // Chọn voucher giảm giá
+        selectedDiscountVoucher = voucher;
+        
+        document.getElementById('discount-voucher-status').textContent = `${voucher.code} - Tiết kiệm ${voucher.discount_formatted}`;
+        document.getElementById('discount-voucher-display').classList.remove('hidden');
+        document.getElementById('discount-voucher-code').textContent = voucher.code;
+        document.getElementById('discount-voucher-save').textContent = `Tiết kiệm ${voucher.discount_formatted}`;
+        
+        document.getElementById('voucher-code-input').value = voucher.code;
+        currentDiscount = voucher.discount_amount;
+        document.getElementById('discount-amount-input').value = currentDiscount;
+        document.getElementById('discount-row').classList.remove('hidden');
+        document.getElementById('discount-display').textContent = '-' + voucher.discount_formatted;
+    }
+    
+    recalcTotal();
+    closeVoucherModal();
+}
+
+// Xóa voucher giảm giá
+function removeDiscountVoucher() {
+    selectedDiscountVoucher = null;
+    document.getElementById('discount-voucher-status').textContent = 'Chưa chọn voucher';
+    document.getElementById('discount-voucher-display').classList.add('hidden');
+    document.getElementById('voucher-code-input').value = '';
+    
+    currentDiscount = 0;
+    document.getElementById('discount-amount-input').value = 0;
+    document.getElementById('discount-row').classList.add('hidden');
+    
+    recalcTotal();
+}
+
+// Xóa voucher freeship
+function removeFreeshipVoucher() {
+    selectedFreeshipVoucher = null;
+    document.getElementById('freeship-voucher-status').textContent = 'Chưa chọn voucher';
+    document.getElementById('freeship-voucher-display').classList.add('hidden');
+    document.getElementById('ship-voucher-code-input').value = '';
+    
+    currentShipDiscount = 0;
+    document.getElementById('shipping-discount-input').value = 0;
+    document.getElementById('ship-discount-row').classList.add('hidden');
+    
+    recalcTotal();
+}
+</script>
+
+<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+
+<!-- Modal Chọn Voucher (Dùng chung cho cả 2 loại) -->
+<div id="voucher-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-end md:items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white w-full md:max-w-2xl md:rounded-3xl rounded-t-3xl max-h-[85vh] flex flex-col transform translate-y-full md:translate-y-0 md:scale-95 transition-transform duration-300"
+         id="voucher-modal-content">
+        
+        <div class="p-6 border-b border-gray-100 flex items-center justify-between">
+            <div>
+                <h2 class="text-xl font-black text-gray-900 flex items-center gap-2">
+                    <i class="fas fa-ticket-alt text-cica-red"></i> <span id="modal-title">Chọn Voucher</span>
+                </h2>
+                <p class="text-sm text-gray-500 mt-1" id="modal-subtitle">Chọn voucher phù hợp với đơn hàng</p>
+            </div>
+            <button onclick="closeVoucherModal()" class="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition">
+                <i class="fas fa-times text-gray-600"></i>
+            </button>
+        </div>
+        
+        <div class="flex-1 overflow-y-auto p-6">
+            <div id="voucher-list" class="space-y-3"></div>
+        </div>
+        
+        <div class="p-6 border-t border-gray-100 bg-gray-50">
+            <p class="text-xs text-gray-500 text-center">
+                <i class="fas fa-info-circle mr-1"></i>
+                Voucher xám là chưa đủ điều kiện sử dụng
+            </p>
+        </div>
+    </div>
+</div>
+
+<style>
+#voucher-modal.active {
+    opacity: 1;
+}
+#voucher-modal.active #voucher-modal-content {
+    transform: translateY(0) scale(1);
+}
+</style>
 </script>

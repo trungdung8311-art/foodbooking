@@ -1,6 +1,6 @@
 <?php
 // api/order/apply_voucher.php - AJAX: Áp dụng voucher
-require_once __DIR__ . '/../../config/database.php';
+require_once __DIR__ . '/../../config/database.php'; // Session đã được khởi tạo trong file này
 header('Content-Type: application/json; charset=utf-8');
 
 $input = json_decode(file_get_contents('php://input'), true);
