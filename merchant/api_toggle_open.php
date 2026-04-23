@@ -1,6 +1,6 @@
 <?php
 // merchant/api_toggle_open.php
-require_once '../db_config.php';
+require_once '../config/database.php';
 require_once 'auth_check.php';
 requireMerchant();
 
