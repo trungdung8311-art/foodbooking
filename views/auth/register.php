@@ -18,7 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($fullName) || mb_strlen($fullName) < 2) $errors['full_name'] = 'Vui lòng nhập họ tên (tối thiểu 2 ký tự)';
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) $errors['email'] = 'Email không hợp lệ';
     if (strlen($phone) < 9 || strlen($phone) > 11) $errors['phone'] = 'Số điện thoại không hợp lệ (9-11 chữ số)';
-    if (strlen($password) < 6) $errors['password'] = 'Mật khẩu tối thiểu 6 ký tự';
+    // Validation mật khẩu: tối thiểu 8 ký tự, phải có cả chữ và số
+    if (strlen($password) < 8 || !preg_match('/[a-zA-Z]/', $password) || !preg_match('/[0-9]/', $password)) {
+        $errors['password'] = 'Mật khẩu phải dài ít nhất 8 ký tự và bao gồm cả chữ và số.';
+    }
     if ($password !== $confirm) $errors['confirm'] = 'Mật khẩu xác nhận không khớp';
     if (!$agree) $errors['agree'] = 'Vui lòng đồng ý với điều khoản sử dụng';
 
@@ -87,36 +90,8 @@ $pageTitle = 'Đăng Ký - Cicafood';
                 </div>
                 <span class="text-3xl font-black text-white tracking-tight">Cicafood</span>
             </a>
-            <h1 class="text-5xl font-black text-white leading-tight mb-4">Tham gia<br>Cicafood! 🚀</h1>
-            <p class="text-white/70 text-base leading-relaxed mb-8">Đăng ký miễn phí và nhận voucher chào mừng <strong class="text-yellow-300">GIẢM 20%</strong> cho đơn hàng đầu tiên!</p>
-            
+            <h1 class="text-5xl font-black text-white leading-tight mb-4">Tham gia<br>Cicafood!</h1>            
             <!-- Benefits -->
-            <div class="space-y-3">
-                <div class="flex items-center gap-3 text-white/90">
-                    <div class="w-8 h-8 bg-white/15 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-check text-green-300 text-xs"></i>
-                    </div>
-                    <span class="text-sm">Voucher CICA20 - Giảm 20% đơn đầu</span>
-                </div>
-                <div class="flex items-center gap-3 text-white/90">
-                    <div class="w-8 h-8 bg-white/15 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-check text-green-300 text-xs"></i>
-                    </div>
-                    <span class="text-sm">Freeship toàn bộ đơn đầu tiên</span>
-                </div>
-                <div class="flex items-center gap-3 text-white/90">
-                    <div class="w-8 h-8 bg-white/15 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-check text-green-300 text-xs"></i>
-                    </div>
-                    <span class="text-sm">Tich lũy điểm thưởng CicaPoint</span>
-                </div>
-                <div class="flex items-center gap-3 text-white/90">
-                    <div class="w-8 h-8 bg-white/15 rounded-full flex items-center justify-center flex-shrink-0">
-                        <i class="fas fa-check text-green-300 text-xs"></i>
-                    </div>
-                    <span class="text-sm">Ưu đãi thành viên độc quyền mỗi ngày</span>
-                </div>
-            </div>
         </div>
         <div class="relative z-10">
             <p class="text-white/60 text-sm text-center">Đã có tài khoản? 
@@ -192,7 +167,7 @@ $pageTitle = 'Đăng Ký - Cicafood';
                     <label class="block text-xs font-bold text-gray-700 mb-1.5 uppercase tracking-wide">Mật Khẩu <span class="text-cica-red">*</span></label>
                     <div class="relative">
                         <i class="fas fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-                        <input type="password" name="password" id="password" placeholder="••••••"
+                        <input type="password" name="password" id="password" placeholder="VD: danh2026"
                                class="input-field <?= isset($errors['password']) ? 'error' : '' ?>">
                     </div>
                     <?php if (isset($errors['password'])): ?>
@@ -253,19 +228,31 @@ $pageTitle = 'Đăng Ký - Cicafood';
 document.getElementById('password').addEventListener('input', function() {
     const val = this.value;
     let score = 0;
-    if (val.length >= 6) score++;
-    if (val.length >= 10) score++;
-    if (/[A-Z]/.test(val) || /[0-9]/.test(val)) score++;
-    if (/[^A-Za-z0-9]/.test(val)) score++;
+    // Đạt chuẩn tối thiểu: 8 ký tự + có chữ + có số
+    const hasLetter = /[a-zA-Z]/.test(val);
+    const hasDigit  = /[0-9]/.test(val);
+    const hasSpecial = /[^A-Za-z0-9]/.test(val);
+    if (val.length >= 8 && hasLetter && hasDigit) score++; // đạt chuẩn
+    if (val.length >= 10) score++;                          // dài hơn
+    if (hasSpecial) score++;                                // ký tự đặc biệt
+    if (val.length >= 12 && hasSpecial) score++;            // rất mạnh
 
     const colors = ['', '#ef4444', '#f97316', '#eab308', '#22c55e'];
-    const labels = ['', 'Yếu', 'Trung bình', 'Khá mạnh', 'Rất mạnh'];
+    const labels = ['', 'Đạt chuẩn', 'Trung bình', 'Khá mạnh', 'Rất mạnh'];
     for (let i = 1; i <= 4; i++) {
         const bar = document.getElementById('bar' + i);
         bar.style.background = i <= score ? colors[score] : '#e5e7eb';
     }
-    document.getElementById('strength-text').textContent = score > 0 ? `Độ mạnh: ${labels[score]}` : 'Nhập mật khẩu để kiểm tra độ mạnh';
-    document.getElementById('strength-text').style.color = score > 0 ? colors[score] : '#9ca3af';
+    // Hiển thị gợi ý nếu chưa đủ điều kiện
+    let hint = '';
+    if (val.length > 0 && (val.length < 8 || !hasLetter || !hasDigit)) {
+        hint = '⚠ Cần ≥ 8 ký tự, có chữ cái và chữ số';
+        document.getElementById('strength-text').style.color = '#ef4444';
+    } else {
+        hint = score > 0 ? `Độ mạnh: ${labels[score]}` : 'Nhập mật khẩu để kiểm tra độ mạnh';
+        document.getElementById('strength-text').style.color = score > 0 ? colors[score] : '#9ca3af';
+    }
+    document.getElementById('strength-text').textContent = hint;
 });
 </script>
 </body>
