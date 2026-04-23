@@ -49,11 +49,13 @@ CREATE TABLE `categories` (
 DROP TABLE IF EXISTS `restaurants`;
 CREATE TABLE `restaurants` (
   `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `owner_id` INT UNSIGNED DEFAULT NULL,
   `category_id` INT UNSIGNED DEFAULT NULL,
   `name` VARCHAR(200) NOT NULL,
   `slug` VARCHAR(220) NOT NULL UNIQUE,
   `description` TEXT,
   `address` TEXT NOT NULL,
+  `province` VARCHAR(100) DEFAULT NULL COMMENT 'Tỉnh/thành phố (63 tỉnh)',
   `phone` VARCHAR(20),
   `image` VARCHAR(255) DEFAULT NULL,
   `cover_image` VARCHAR(255) DEFAULT NULL,
@@ -69,10 +71,10 @@ CREATE TABLE `restaurants` (
   `has_deal` TINYINT(1) DEFAULT 0,
   `open_time` TIME DEFAULT '07:00:00',
   `close_time` TIME DEFAULT '22:00:00',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_restaurant_owner` FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-ALTER TABLE `restaurants` ADD FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL;
 
 -- ============================================================
 -- TABLE: menu_categories (Nhóm menu trong nhà hàng: Combo, Món chính...)
@@ -127,12 +129,37 @@ CREATE TABLE `orders` (
   `total_amount` INT NOT NULL DEFAULT 0 COMMENT 'Tổng thanh toán cuối cùng',
   `voucher_code` VARCHAR(50) DEFAULT NULL,
   `voucher_ship_code` VARCHAR(50) DEFAULT NULL,
-  `payment_method` ENUM('cod', 'momo', 'zalopay', 'bank') DEFAULT 'cod',
+  `payment_method` ENUM('cod', 'vnpay', 'momo', 'zalopay', 'bank') DEFAULT 'cod',
+  `payment_status` ENUM('pending', 'paid', 'failed', 'refunded') DEFAULT 'pending',
+  `payment_transaction_id` VARCHAR(100) DEFAULT NULL,
+  `payment_date` TIMESTAMP NULL DEFAULT NULL,
   `status` ENUM('pending', 'confirmed', 'preparing', 'delivering', 'completed', 'cancelled') DEFAULT 'pending',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
   FOREIGN KEY (`restaurant_id`) REFERENCES `restaurants`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABLE: payment_logs (Lịch sử thanh toán)
+-- ============================================================
+DROP TABLE IF EXISTS `payment_logs`;
+CREATE TABLE `payment_logs` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `order_id` INT UNSIGNED NOT NULL,
+  `payment_method` ENUM('cod', 'vnpay', 'momo', 'zalopay', 'bank') NOT NULL,
+  `amount` INT NOT NULL COMMENT 'Số tiền (VND)',
+  `status` ENUM('pending', 'success', 'failed', 'refunded') NOT NULL DEFAULT 'pending',
+  `transaction_id` VARCHAR(100) DEFAULT NULL COMMENT 'Mã giao dịch từ cổng thanh toán',
+  `response_code` VARCHAR(20) DEFAULT NULL COMMENT 'Mã phản hồi',
+  `request_data` TEXT DEFAULT NULL COMMENT 'Dữ liệu request (JSON)',
+  `response_data` TEXT DEFAULT NULL COMMENT 'Dữ liệu response (JSON)',
+  `error_message` TEXT DEFAULT NULL COMMENT 'Thông báo lỗi nếu có',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`order_id`) REFERENCES `orders`(`id`) ON DELETE CASCADE,
+  INDEX `idx_order_id` (`order_id`),
+  INDEX `idx_transaction_id` (`transaction_id`),
+  INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -168,7 +195,8 @@ CREATE TABLE `vouchers` (
   `used_count` INT DEFAULT 0,
   `start_date` DATE DEFAULT NULL,
   `end_date` DATE DEFAULT NULL,
-  `is_active` TINYINT(1) DEFAULT 1
+  `is_active` TINYINT(1) DEFAULT 1,
+  `restaurant_id` INT UNSIGNED DEFAULT NULL COMMENT 'NULL=toàn platform; có giá trị=voucher riêng nhà hàng'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -187,16 +215,75 @@ CREATE TABLE `reviews` (
   FOREIGN KEY (`restaurant_id`) REFERENCES `restaurants`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ============================================================
+-- TABLE: user_vouchers (Ví voucher của từng user)
+-- ============================================================
+DROP TABLE IF EXISTS `user_vouchers`;
+CREATE TABLE `user_vouchers` (
+  `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id`    INT UNSIGNED NOT NULL,
+  `voucher_id` INT UNSIGNED NOT NULL,
+  `is_used`    TINYINT(1) DEFAULT 0,
+  `used_at`    TIMESTAMP NULL DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`)    REFERENCES `users`(`id`)    ON DELETE CASCADE,
+  FOREIGN KEY (`voucher_id`) REFERENCES `vouchers`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `unique_user_voucher` (`user_id`, `voucher_id`),
+  INDEX `idx_user_id`    (`user_id`),
+  INDEX `idx_voucher_id` (`voucher_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABLE: favorites (Nhà hàng yêu thích)
+-- ============================================================
+DROP TABLE IF EXISTS `favorites`;
+CREATE TABLE `favorites` (
+  `id`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id`       INT UNSIGNED NOT NULL,
+  `restaurant_id` INT UNSIGNED NOT NULL,
+  `created_at`    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`)       REFERENCES `users`(`id`)       ON DELETE CASCADE,
+  FOREIGN KEY (`restaurant_id`) REFERENCES `restaurants`(`id`) ON DELETE CASCADE,
+  UNIQUE KEY `unique_favorite` (`user_id`, `restaurant_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- TABLE: merchant_applications (Đơn đăng ký đối tác)
+-- ============================================================
+DROP TABLE IF EXISTS `merchant_applications`;
+CREATE TABLE `merchant_applications` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT UNSIGNED NOT NULL,
+  `restaurant_name` VARCHAR(200) NOT NULL,
+  `restaurant_address` TEXT NOT NULL,
+  `province` VARCHAR(100) DEFAULT 'TP. Hồ Chí Minh',
+  `business_type` VARCHAR(100) DEFAULT NULL,
+  `phone` VARCHAR(20),
+  `logo_path` VARCHAR(255) DEFAULT NULL,
+  `category_id` INT UNSIGNED DEFAULT NULL,
+  `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+  `note` TEXT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
 -- DỮ LIỆU MẪU
 -- ============================================================
 
--- Users (mật khẩu: Password123)
+-- ============================================================
+-- USERS TEST - Mật khẩu: Password123
+-- ============================================================
+-- Hash bcrypt đúng của "Password123" (tạo bằng password_hash('Password123', PASSWORD_BCRYPT))
+-- QUAN TRỌNG: Hash cũ ($2y$10$92IX...) là hash của chuỗi "password", KHÔNG PHẢI "Password123"
+--
+-- 2 TÀI KHOẢN TEST:
+-- 1. Admin (Merchant): admin@cicafood.vn / Password123
+-- 2. Customer:         an@gmail.com     / Password123
+-- ============================================================
 INSERT INTO `users` (`full_name`, `email`, `phone`, `password_hash`, `address`, `role`) VALUES
-('Bùi Trung Dũng', 'admin@cicafood.vn', '0901234567', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '123 Nguyễn Huệ, Q1, TP.HCM', 'admin'),
-('Nguyễn Văn An', 'an@gmail.com', '0912345678', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '456 Lê Lợi, Q1, TP.HCM', 'customer'),
-('Trần Thị Bích', 'bich@gmail.com', '0923456789', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '789 Trần Hưng Đạo, Q5, TP.HCM', 'customer');
+('Bùi Trung Dũng', 'admin@cicafood.vn', '0901234567', '$2y$10$OmCVxtpfQHc2ja1yo5ZMzek.7xzl9OzHieKSUUEsPGOHymdTyHH5a', '123 Nguyễn Huệ, Q1, TP.HCM', 'admin'),
+('Nguyễn Văn An', 'an@gmail.com', '0912345678', '$2y$10$YNO25cjz6hvI/HF7bsjeyeQNQkp1QiIWEwP3S4LKQ3a1gKpbsFyjW', '456 Lê Lợi, Q1, TP.HCM', 'customer');
 
 -- Categories
 INSERT INTO `categories` (`name`, `slug`, `icon`, `color`, `sort_order`) VALUES
@@ -210,15 +297,15 @@ INSERT INTO `categories` (`name`, `slug`, `icon`, `color`, `sort_order`) VALUES
 ('Lẩu', 'lau', 'fa-pot-food', '#ef4444', 8);
 
 -- Restaurants
-INSERT INTO `restaurants` (`category_id`, `name`, `slug`, `description`, `address`, `phone`, `image`, `cover_image`, `rating`, `total_reviews`, `min_order`, `delivery_fee`, `delivery_time`, `distance`, `is_open`, `is_featured`, `has_freeship`, `has_deal`) VALUES
-(2, 'Phở Gánh Hà Nội', 'pho-ganh-ha-noi', 'Phở bò truyền thống Hà Nội với nước dùng hầm 12 tiếng, thịt mềm tan trong miệng.', '12 Võ Văn Tần, Q3, TP.HCM', '0901111222', 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80', 4.9, 1250, 50000, 0, 15, 0.8, 1, 1, 1, 0),
-(1, 'Cơm Tấm Ba Ghiền', 'com-tam-ba-ghien', 'Cơm tấm sườn bì chả chuẩn vị Sài Gòn, thịt nướng thơm lừng, bì dai giòn.', '45 Đinh Tiên Hoàng, Q Bình Thạnh, TP.HCM', '0902222333', 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80', 4.8, 980, 40000, 12000, 20, 1.2, 1, 1, 0, 1),
-(3, 'Burger Bò Wagyu House', 'burger-bo-wagyu', 'Burger bò Wagyu nhập khẩu, pho mát chảy, bánh mì thủ công nướng lò. Premium taste!', '78 Nguyễn Đình Chiểu, Q3, TP.HCM', '0903333444', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1550317138-10000687a72b?auto=format&fit=crop&w=1200&q=80', 4.6, 760, 80000, 15000, 25, 2.1, 1, 0, 0, 1),
-(5, 'Sushi Hokkaido Authentic', 'sushi-hokkaido', 'Sushi tươi sống nhập khẩu từ Nhật, cá hồi, cá ngừ béo ngậy. Trải nghiệm ẩm thực Nhật đích thực.', '156 Hai Bà Trưng, Q1, TP.HCM', '0904444555', 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1617196034183-421b4040ed20?auto=format&fit=crop&w=1200&q=80', 4.9, 1680, 100000, 20000, 30, 3.5, 1, 1, 1, 0),
-(6, 'Phúc Long Tea & Coffee', 'phuc-long-tea-coffee', 'Trà sữa, trà đào, cà phê và các thức uống đặc sắc từ thương hiệu trà nổi tiếng Việt Nam.', '23 Lê Văn Sỹ, Q Phú Nhuận, TP.HCM', '0905555666', 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1453614512568-c4024d13c247?auto=format&fit=crop&w=1200&q=80', 4.7, 2100, 30000, 10000, 18, 1.5, 1, 0, 1, 1),
-(4, 'Pizza Napoli Express', 'pizza-napoli', 'Pizza kiểu Napoli truyền thống, lò củi 900°C, đế mỏng giòn, topping phong phú.', '67 Cách Mạng Tháng 8, Q10, TP.HCM', '0906666777', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?auto=format&fit=crop&w=1200&q=80', 4.5, 520, 60000, 15000, 35, 4.2, 1, 0, 0, 0),
-(2, 'Bún Chả Hà Nội Cô Lan', 'bun-cha-ha-noi', 'Bún chả đặc sản Hà Nội, chả nướng than hoa thơm lừng, nước chấm chua ngọt đậm đà.', '34 Phan Xích Long, Q Phú Nhuận, TP.HCM', '0907777888', 'https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=1200&q=80', 4.7, 890, 45000, 12000, 22, 1.8, 1, 1, 0, 1),
-(8, 'Lẩu Thái KungFu', 'lau-thai-kungfu', 'Lẩu Thái chua cay nồng nàn, hải sản tươi sống, rau đủ loại. Phục vụ từ 2 người trở lên.', '89 Võ Thị Sáu, Q3, TP.HCM', '0908888999', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?auto=format&fit=crop&w=1200&q=80', 4.8, 1450, 150000, 0, 40, 2.7, 1, 0, 1, 0);
+INSERT INTO `restaurants` (`category_id`, `name`, `slug`, `description`, `address`, `province`, `phone`, `image`, `cover_image`, `rating`, `total_reviews`, `min_order`, `delivery_fee`, `delivery_time`, `distance`, `is_open`, `is_featured`, `has_freeship`, `has_deal`) VALUES
+(2, 'Phở Gánh Hà Nội', 'pho-ganh-ha-noi', 'Phở bò truyền thống Hà Nội với nước dùng hầm 12 tiếng, thịt mềm tan trong miệng.', '12 Võ Văn Tần, Q3, TP.HCM', 'TP. Hồ Chí Minh', '0901111222', 'https://images.unsplash.com/photo-1582878826629-29b7ad1cdc43?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80', 4.9, 1250, 50000, 0, 15, 0.8, 1, 1, 1, 0),
+(1, 'Cơm Tấm Ba Ghiền', 'com-tam-ba-ghien', 'Cơm tấm sườn bì chả chuẩn vị Sài Gòn, thịt nướng thơm lừng, bì dai giòn.', '45 Đinh Tiên Hoàng, Q Bình Thạnh, TP.HCM', 'TP. Hồ Chí Minh', '0902222333', 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80', 4.8, 980, 40000, 12000, 20, 1.2, 1, 1, 0, 1),
+(3, 'Burger Bò Wagyu House', 'burger-bo-wagyu', 'Burger bò Wagyu nhập khẩu, pho mát chảy, bánh mì thủ công nướng lò. Premium taste!', '78 Nguyễn Đình Chiểu, Q3, TP.HCM', 'TP. Hồ Chí Minh', '0903333444', 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1550317138-10000687a72b?auto=format&fit=crop&w=1200&q=80', 4.6, 760, 80000, 15000, 25, 2.1, 1, 0, 0, 1),
+(5, 'Sushi Hokkaido Authentic', 'sushi-hokkaido', 'Sushi tươi sống nhập khẩu từ Nhật, cá hồi, cá ngừ béo ngậy. Trải nghiệm ẩm thực Nhật đích thực.', '156 Hai Bà Trưng, Q1, TP.HCM', 'TP. Hồ Chí Minh', '0904444555', 'https://images.unsplash.com/photo-1579871494447-9811cf80d66c?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1617196034183-421b4040ed20?auto=format&fit=crop&w=1200&q=80', 4.9, 1680, 100000, 20000, 30, 3.5, 1, 1, 1, 0),
+(6, 'Phúc Long Tea & Coffee', 'phuc-long-tea-coffee', 'Trà sữa, trà đào, cà phê và các thức uống đặc sắc từ thương hiệu trà nổi tiếng Việt Nam.', '23 Lê Văn Sỹ, Q Phú Nhuận, TP.HCM', 'TP. Hồ Chí Minh', '0905555666', 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1453614512568-c4024d13c247?auto=format&fit=crop&w=1200&q=80', 4.7, 2100, 30000, 10000, 18, 1.5, 1, 0, 1, 1),
+(4, 'Pizza Napoli Express', 'pizza-napoli', 'Pizza kiểu Napoli truyền thống, lò củi 900°C, đế mỏng giòn, topping phong phú.', '67 Cách Mạng Tháng 8, Q10, TP.HCM', 'TP. Hồ Chí Minh', '0906666777', 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1571997478779-2adcbbe9ab2f?auto=format&fit=crop&w=1200&q=80', 4.5, 520, 60000, 15000, 35, 4.2, 1, 0, 0, 0),
+(2, 'Bún Chả Hà Nội Cô Lan', 'bun-cha-ha-noi', 'Bún chả đặc sản Hà Nội, chả nướng than hoa thơm lừng, nước chấm chua ngọt đậm đà.', '34 Phan Xích Long, Q Phú Nhuận, TP.HCM', 'TP. Hồ Chí Minh', '0907777888', 'https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=1200&q=80', 4.7, 890, 45000, 12000, 22, 1.8, 1, 1, 0, 1),
+(8, 'Lẩu Thái KungFu', 'lau-thai-kungfu', 'Lẩu Thái chua cay nồng nàn, hải sản tươi sống, rau đủ loại. Phục vụ từ 2 người trở lên.', '89 Võ Thị Sáu, Q3, TP.HCM', 'TP. Hồ Chí Minh', '0908888999', 'https://images.unsplash.com/photo-1547592166-23ac45744acd?auto=format&fit=crop&w=800&q=80', 'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?auto=format&fit=crop&w=1200&q=80', 4.8, 1450, 150000, 0, 40, 2.7, 1, 0, 1, 0);
 
 -- Menu Categories cho từng nhà hàng
 INSERT INTO `menu_categories` (`restaurant_id`, `name`, `sort_order`) VALUES
